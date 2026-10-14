@@ -50,6 +50,6 @@ jobs:
         uses: exuanbo/actions-deploy-gist@v1
         with:
           token: ${{ secrets.GH_PASSWORD }}
-          gist_id: fb299be02db11459541d244f9f225484
+          gist_id: b873a63b846855a4a65de1ff243f52af
           gist_description: "Deployment Status Tracker"
           file_path: deploy-status.json
