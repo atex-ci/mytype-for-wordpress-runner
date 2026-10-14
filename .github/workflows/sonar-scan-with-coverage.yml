@@ -389,13 +389,14 @@ jobs:
           SONAR_SCANNER_OPTS: >
             -Dsonar.projectKey=${{ github.event.inputs.PROJECT_KEY }}
             -Dsonar.projectName=${{ github.event.inputs.PROJECT_KEY }}
+            -Dsonar.projectVersion=2026.10.14
             -Dsonar.javascript.lcov.reportPaths=**/coverage/lcov.info
             -Dsonar.typescript.internal.maxNodeMemory=4096
             -Dsonar.coverage.new_code.disabled=true
             -Dsonar.coverage.overall.disabled=true
             -Dsonar.dependencyCheck.htmlReportPath=dependency-check-report.html
             -Dsonar.inclusions=**/*.ts,**/*.tsx
-            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/coverage/**,**/*.spec.ts,**/*.test.ts,**/*.spec.tsx,**/*.test.tsx,**/__mocks__/**,**/apps/client/src/components/debug/**,**/shared/build/**,**/types.ts,**/advanced-prosemirror-history.ts,**/*.json,**/*.js
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/coverage/**,**/*.spec.ts,**/*.test.ts,**/*.spec.tsx,**/*.test.tsx,**/__mocks__/**,**/apps/client/src/components/debug/**,**/shared/build/**,**/types.ts,**/advanced-prosemirror-history.ts,**/*.json,**/*.js,apps/client/src/lib/lokijs.js,apps/client/src/lib/loki-indexed-adapter.js
             -Dsonar.test.inclusions=**/*.spec.ts,**/*.test.ts,**/*.spec.tsx,**/*.test.tsx
 
       - uses: sonarsource/sonarqube-quality-gate-action@master
