@@ -14,7 +14,7 @@ on:
       PROJECT_KEY:
         description: 'Sonarqube Project Key'     
         required: true
-        default: 'mytype'
+        default: 'joynalist'
       SONAR_KEY:
         description: 'Name of the repository secret holding the SonarQube token'
         required: true
