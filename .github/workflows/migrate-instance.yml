@@ -48,10 +48,6 @@ jobs:
       DEFAULT_AWS_SECRET_ACCESS_KEY: "${{ secrets.DEFAULT_AWS_SECRET_ACCESS_KEY }}" 
       GH_REPO_OWNER: ${{ github.repository_owner }}
       GH_PASSWORD: ${{ secrets.GH_PASSWORD }}
-      PEM_DEV_EC2_AURORA_BROWSER: ${{ secrets.PEM_DEV_EC2_AURORA_BROWSER }}
-      PEM_STAGING_EC2_AURORA_BROWSER: ${{ secrets.PEM_STAGING_EC2_AURORA_BROWSER }}
-      AURORA_DEV_ADMIN_PASSWORD: ${{ secrets.AURORA_DEV_ADMIN_PASSWORD }}
-      AURORA_STAGING_ADMIN_PASSWORD: ${{ secrets.AURORA_STAGING_ADMIN_PASSWORD }}      
     steps:
       - name: checkout
         run: |
