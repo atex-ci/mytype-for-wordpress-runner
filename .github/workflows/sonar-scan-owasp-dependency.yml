@@ -216,7 +216,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
-          SONAR_SCANNER_OPTS: "-Dsonar.projectKey=${{ inputs.PROJECT_KEY }} -Dsonar.dependencyCheck.jsonReportPath=reports/dependency-check-report.json -Dsonar.dependencyCheck.htmlReportPath=reports/dependency-check-report.html"
+          SONAR_SCANNER_OPTS: "-Dsonar.projectKey=${{ inputs.PROJECT_KEY }} -Dsonar.dependencyCheck.jsonReportPath=reports/dependency-check-report.json -Dsonar.dependencyCheck.htmlReportPath=reports/dependency-check-report.html -Dsonar.exclusions=**/apps/client/src/lib/lokijs.js,**/apps/client/src/lib/loki-indexed-adapter.js"
       # If you wish to fail your job when the Quality Gate is red, uncomment the
       # following lines. This would typically be used to fail a deployment.
       # - uses: sonarsource/sonarqube-quality-gate-action@master

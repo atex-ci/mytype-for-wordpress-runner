@@ -215,7 +215,7 @@ jobs:
           sonar-scanner \
             -Dsonar.projectKey=${{ inputs.PROJECT_KEY }} \
             -Dsonar.sources=. \
-            -Dsonar.exclusions=**/node_modules/**,**/.pnpm/**,**/dist/**,**/build/**,**/coverage/** \
+            -Dsonar.exclusions=**/node_modules/**,**/.pnpm/**,**/dist/**,**/build/**,**/coverage/**,**/apps/client/src/lib/lokijs.js,**/apps/client/src/lib/loki-indexed-adapter.js \
             -Dsonar.dependencyCheck.jsonReportPath=reports/dependency-check-report.json \
             -Dsonar.dependencyCheck.htmlReportPath=reports/dependency-check-report.html
         env:
