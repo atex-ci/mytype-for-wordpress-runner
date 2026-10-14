@@ -58,7 +58,7 @@ jobs:
           pwd
           echo "GIT_BRANCH is ${{ github.event.inputs.GIT_BRANCH}}"
           git config --global http.sslverify false
-          git clone --branch "${{ github.event.inputs.GIT_BRANCH}}" "https://${{ github.repository_owner }}:${{ secrets.GH_PASSWORD }}@github.com/atex-products/mytype.git" .
+          git clone --branch "${{ github.event.inputs.GIT_BRANCH}}" "https://${{ github.repository_owner }}:${{ secrets.GH_PASSWORD }}@github.com/atex-products/mytype-for-wordpress.git" .
           ls -la
 
       # .nvmrc is the source of truth for the Node version, floored at the oldest Node

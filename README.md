@@ -1,1 +1,1 @@
-# mytype-runner
+# mytype-for-wordpress-runner
