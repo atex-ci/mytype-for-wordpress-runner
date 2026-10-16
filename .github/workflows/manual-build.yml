@@ -44,6 +44,44 @@ jobs:
           git clone --branch "${{ github.event.inputs.GIT_BRANCH}}" "https://${{ github.repository_owner }}:${{ secrets.GH_PASSWORD }}@github.com/atex-products/mytype-for-wordpress.git" .
           ls -la
 
+      - name: Resolve git tree
+        id: tree
+        run: |
+          echo "hash=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # The mt4wp commit shows this build (tests, sonar gate, deploy) as its `manual-build` check.
+      - name: Report the build as pending on the commit
+        if: github.event.inputs.OPERATION == 'full'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GH_PASSWORD }}
+        run: |
+          gh api "repos/atex-products/mytype-for-wordpress/statuses/${{ steps.tree.outputs.sha }}" \
+            -f state=pending -f context=manual-build -f description="build running" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      # sonar-scan-with-coverage saves this marker after a passing scan of a tree
+      - name: Look up a passing sonar scan of this tree
+        id: sonar-passed
+        uses: actions/cache/restore@v4
+        with:
+          path: .sonar-passed
+          key: sonar-passed-${{ steps.tree.outputs.hash }}
+          lookup-only: true
+
+      # Started before this job's own setup: the scan is the longest leg of a branch build.
+      - name: Start the sonar scan
+        id: sonar-scan
+        if: github.event.inputs.OPERATION == 'full' && steps.sonar-passed.outputs.cache-hit != 'true'
+        env:
+          GIT_BRANCH: ${{ github.event.inputs.GIT_BRANCH }}
+          GH_PASSWORD: ${{ secrets.GH_PASSWORD }}
+        run: |
+          ./shared/build/scripts/sonarqube/execute-scan.sh sonar-scan-with-coverage.yml
+          echo "run-id=$(cat sonar_run_id.txt)" >> "$GITHUB_OUTPUT"
+          rm sonar_run_id.txt
+
       # .nvmrc is the source of truth for the Node version, floored at the oldest Node
       # LTS we are willing to build on. Branches predating the Node 24 standardisation
       # still declare v20, whose last release was 2026-03-24 and which no longer gets
@@ -107,16 +145,9 @@ jobs:
           
       - name: Install dependencies
         run: pnpm install
-      - name: Delete Previous Cache
-        if: ${{ steps.cache-dependencies-restore.outputs.cache-hit }}
-        continue-on-error: true
-        run: |
-          gh extension install actions/gh-actions-cache
-          gh actions-cache delete "${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}" --confirm
-        env:
-          GH_TOKEN: ${{ secrets.GH_PASSWORD }}          
       - name: Cache pnpm dependencies
         id: cache-dependencies-save
+        if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v3
         with:
           path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
@@ -141,8 +172,22 @@ jobs:
       
       # export any variables needed for the build script before running it
       - name: BUILD
+        env:
+          SONAR_ALREADY_PASSED: ${{ steps.sonar-passed.outputs.cache-hit }}
+          SONAR_RUN_ID: ${{ steps.sonar-scan.outputs.run-id }}
         run: |
           export GH_PASSWORD="${{ secrets.GH_PASSWORD }}"
           export DEFAULT_AWS_ACCESS_KEY_ID="${{ secrets.DEFAULT_AWS_ACCESS_KEY_ID }}"
           export DEFAULT_AWS_SECRET_ACCESS_KEY="${{ secrets.DEFAULT_AWS_SECRET_ACCESS_KEY }}"
           ./shared/build/boot.sh "${{ github.event.inputs.GIT_BRANCH}}" "${{ steps.jobs.outputs.html_url }}" "${{ github.event.inputs.ENVIRONMENT }}" "${{ secrets.SALT }}" "${{ github.event.inputs.OPERATION }}"
+
+      - name: Report the build result on the commit
+        if: always() && github.event.inputs.OPERATION == 'full' && steps.tree.outputs.sha != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GH_PASSWORD }}
+        run: |
+          state=$([ "${{ job.status }}" = success ] && echo success || echo failure)
+          gh api "repos/atex-products/mytype-for-wordpress/statuses/${{ steps.tree.outputs.sha }}" \
+            -f state="$state" -f context=manual-build -f description="build ${{ job.status }}" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
