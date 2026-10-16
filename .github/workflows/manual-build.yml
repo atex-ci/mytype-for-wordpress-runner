@@ -107,21 +107,27 @@ jobs:
           
       - name: Install dependencies
         run: pnpm install
-      - name: Delete Previous Cache
-        if: ${{ steps.cache-dependencies-restore.outputs.cache-hit }}
-        continue-on-error: true
-        run: |
-          gh extension install actions/gh-actions-cache
-          gh actions-cache delete "${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}" --confirm
-        env:
-          GH_TOKEN: ${{ secrets.GH_PASSWORD }}          
       - name: Cache pnpm dependencies
         id: cache-dependencies-save
+        if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v3
         with:
           path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
       - uses: nrwl/nx-set-shas@v3
+
+      - name: Resolve git tree
+        id: tree
+        run: echo "hash=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
+
+      # sonar-scan-with-coverage saves this marker after a passing scan of a tree
+      - name: Look up a passing sonar scan of this tree
+        id: sonar-passed
+        uses: actions/cache/restore@v4
+        with:
+          path: .sonar-passed
+          key: sonar-passed-${{ steps.tree.outputs.hash }}
+          lookup-only: true
       
       - name: Get Current Job Log URL
         id: jobs
@@ -141,6 +147,8 @@ jobs:
       
       # export any variables needed for the build script before running it
       - name: BUILD
+        env:
+          SONAR_ALREADY_PASSED: ${{ steps.sonar-passed.outputs.cache-hit }}
         run: |
           export GH_PASSWORD="${{ secrets.GH_PASSWORD }}"
           export DEFAULT_AWS_ACCESS_KEY_ID="${{ secrets.DEFAULT_AWS_ACCESS_KEY_ID }}"

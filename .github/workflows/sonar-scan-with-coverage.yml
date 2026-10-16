@@ -195,17 +195,9 @@ jobs:
       - name: Start client build (async)
         run: pnpm --filter client build &
         continue-on-error: true
-      - name: Delete Previous Cache
-        if: ${{ steps.cache-dependencies-restore.outputs.cache-hit }}
-        continue-on-error: true
-        run: |
-          gh extension install actions/gh-actions-cache
-          gh actions-cache delete "${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}" --confirm
-        env:
-          GH_TOKEN: ${{ secrets.GH_PASSWORD }}          
-      
       - name: Cache pnpm dependencies
         id: cache-dependencies-save
+        if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v3
         with:
           path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
@@ -403,3 +395,16 @@ jobs:
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets[github.event.inputs.SONAR_KEY] }}
+
+      # manual-build looks this marker up and skips the scan when it builds the same git tree again
+      - name: Resolve scanned git tree
+        id: tree
+        run: echo "hash=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
+
+      - name: Record passing scan of this tree
+        run: mkdir -p .sonar-passed && echo "${{ github.run_id }}" > .sonar-passed/run-id
+
+      - uses: actions/cache/save@v4
+        with:
+          path: .sonar-passed
+          key: sonar-passed-${{ steps.tree.outputs.hash }}
