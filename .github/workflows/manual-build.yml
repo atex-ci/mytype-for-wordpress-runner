@@ -44,6 +44,31 @@ jobs:
           git clone --branch "${{ github.event.inputs.GIT_BRANCH}}" "https://${{ github.repository_owner }}:${{ secrets.GH_PASSWORD }}@github.com/atex-products/mytype-for-wordpress.git" .
           ls -la
 
+      - name: Resolve git tree
+        id: tree
+        run: echo "hash=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
+
+      # sonar-scan-with-coverage saves this marker after a passing scan of a tree
+      - name: Look up a passing sonar scan of this tree
+        id: sonar-passed
+        uses: actions/cache/restore@v4
+        with:
+          path: .sonar-passed
+          key: sonar-passed-${{ steps.tree.outputs.hash }}
+          lookup-only: true
+
+      # Started before this job's own setup: the scan is the longest leg of a branch build.
+      - name: Start the sonar scan
+        id: sonar-scan
+        if: github.event.inputs.OPERATION == 'full' && steps.sonar-passed.outputs.cache-hit != 'true'
+        env:
+          GIT_BRANCH: ${{ github.event.inputs.GIT_BRANCH }}
+          GH_PASSWORD: ${{ secrets.GH_PASSWORD }}
+        run: |
+          ./shared/build/scripts/sonarqube/execute-scan.sh sonar-scan-with-coverage.yml
+          echo "run-id=$(cat sonar_run_id.txt)" >> "$GITHUB_OUTPUT"
+          rm sonar_run_id.txt
+
       # .nvmrc is the source of truth for the Node version, floored at the oldest Node
       # LTS we are willing to build on. Branches predating the Node 24 standardisation
       # still declare v20, whose last release was 2026-03-24 and which no longer gets
@@ -115,19 +140,6 @@ jobs:
           path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
       - uses: nrwl/nx-set-shas@v3
-
-      - name: Resolve git tree
-        id: tree
-        run: echo "hash=$(git rev-parse 'HEAD^{tree}')" >> "$GITHUB_OUTPUT"
-
-      # sonar-scan-with-coverage saves this marker after a passing scan of a tree
-      - name: Look up a passing sonar scan of this tree
-        id: sonar-passed
-        uses: actions/cache/restore@v4
-        with:
-          path: .sonar-passed
-          key: sonar-passed-${{ steps.tree.outputs.hash }}
-          lookup-only: true
       
       - name: Get Current Job Log URL
         id: jobs
@@ -149,6 +161,7 @@ jobs:
       - name: BUILD
         env:
           SONAR_ALREADY_PASSED: ${{ steps.sonar-passed.outputs.cache-hit }}
+          SONAR_RUN_ID: ${{ steps.sonar-scan.outputs.run-id }}
         run: |
           export GH_PASSWORD="${{ secrets.GH_PASSWORD }}"
           export DEFAULT_AWS_ACCESS_KEY_ID="${{ secrets.DEFAULT_AWS_ACCESS_KEY_ID }}"
