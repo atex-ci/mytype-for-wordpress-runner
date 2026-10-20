@@ -64,7 +64,7 @@ jobs:
       # sonar-scan-with-coverage saves this marker after a passing scan of a tree
       - name: Look up a passing sonar scan of this tree
         id: sonar-passed
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .sonar-passed
           key: sonar-passed-${{ steps.tree.outputs.hash }}
@@ -101,12 +101,13 @@ jobs:
           echo "resolved Node $resolved (.nvmrc requested '${want:-none}', floor $MIN_NODE)"
           echo "version=$resolved" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         name: Install node
         with:
           node-version: ${{ steps.node-version.outputs.version }}
+          package-manager-cache: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         name: Install pnpm
         id: pnpm-install
         with:
@@ -120,7 +121,7 @@ jobs:
           echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
       - name: Restore cached pnpm dependencies
         id: cache-dependencies-restore
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v5
         with:
           path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
@@ -148,11 +149,11 @@ jobs:
       - name: Cache pnpm dependencies
         id: cache-dependencies-save
         if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v5
         with:
           path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-      - uses: nrwl/nx-set-shas@v3
+      - uses: nrwl/nx-set-shas@v5
       
       - name: Get Current Job Log URL
         id: jobs

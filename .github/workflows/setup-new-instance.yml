@@ -70,12 +70,13 @@ jobs:
           echo "resolved Node $resolved (.nvmrc requested '${want:-none}', floor $MIN_NODE)"
           echo "version=$resolved" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         name: Install node
         with:
           node-version: ${{ steps.node-version.outputs.version }}
+          package-manager-cache: false
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         name: Install pnpm
         id: pnpm-install
         with:
@@ -89,7 +90,7 @@ jobs:
           echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
       - name: Restore cached pnpm dependencies
         id: cache-dependencies-restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
           key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
