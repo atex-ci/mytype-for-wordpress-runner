@@ -1,0 +1,93 @@
+name: build-image
+
+# Builds the MyType server image for Convox v3. This workflow only provides the machine:
+# how the image is built lives in shared/build/scripts/image/build-image.sh in the product repo.
+on:
+  workflow_dispatch:
+    inputs:
+      GIT_BRANCH:
+        description: 'branch to clone'
+        required: true
+        default: 'main'
+      REPOSITORY:
+        description: 'target <registry>/<repository>'
+        required: true
+      PLATFORMS:
+        description: 'target platforms (empty = the script default)'
+        required: false
+
+run-name: >
+  build-image · ${{ github.event.inputs.GIT_BRANCH }} → ${{ github.event.inputs.REPOSITORY }}
+
+jobs:
+  main:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        run: |
+          git clone --branch "${{ github.event.inputs.GIT_BRANCH}}" "https://${{ github.repository_owner }}:${{ secrets.GH_PASSWORD }}@github.com/atex-products/mytype-for-wordpress.git" .
+
+      # Same policy as manual-build: .nvmrc, floored at the oldest Node LTS we build on.
+      - name: Resolve Node version
+        id: node-version
+        run: |
+          MIN_NODE=22
+          want=$(tr -dc '0-9.' < .nvmrc 2>/dev/null || true)
+          major=${want%%.*}
+          case "$major" in
+            ''|*[!0-9]*) resolved=$MIN_NODE ;;
+            *) if [ "$major" -lt "$MIN_NODE" ]; then resolved=$MIN_NODE; else resolved=$want; fi ;;
+          esac
+          echo "resolved Node $resolved (.nvmrc requested '${want:-none}', floor $MIN_NODE)"
+          echo "version=$resolved" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v5
+        name: Install node
+        with:
+          node-version: ${{ steps.node-version.outputs.version }}
+          package-manager-cache: false
+
+      - uses: pnpm/action-setup@v5
+        name: Install pnpm
+        with:
+          version: 11
+          run_install: false
+
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+      - name: Restore cached pnpm dependencies
+        id: cache-dependencies-restore
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Cache pnpm dependencies
+        if: steps.cache-dependencies-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+
+      # ubuntu-latest is amd64: arm64 is emulated
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+
+      - name: authenticate aws cli
+        run: |
+          aws configure set aws_access_key_id "${{ secrets.DEFAULT_AWS_ACCESS_KEY_ID }}"
+          aws configure set aws_secret_access_key "${{ secrets.DEFAULT_AWS_SECRET_ACCESS_KEY}}"
+
+      - name: BUILD
+        shell: bash
+        env:
+          REPOSITORY: ${{ github.event.inputs.REPOSITORY }}
+          INPUT_PLATFORMS: ${{ github.event.inputs.PLATFORMS }}
+        run: |
+          if [ -n "$INPUT_PLATFORMS" ]; then export PLATFORMS="$INPUT_PLATFORMS"; fi
+          shared/build/scripts/image/build-image.sh "$REPOSITORY" | tee build-image.log
+          echo "Pushed \`$(tail -n 1 build-image.log)\`" >> "$GITHUB_STEP_SUMMARY"
