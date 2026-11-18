@@ -19,6 +19,11 @@ on:
 run-name: >
   build-image · ${{ github.event.inputs.GIT_BRANCH }} → ${{ github.event.inputs.REPOSITORY }}
 
+# id-token: GitHub's OIDC token, exchanged for the push role in the MyType account
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   main:
     runs-on: ubuntu-latest
@@ -77,10 +82,13 @@ jobs:
       - uses: docker/setup-qemu-action@v4
       - uses: docker/setup-buildx-action@v4
 
-      - name: authenticate aws cli
-        run: |
-          aws configure set aws_access_key_id "${{ secrets.DEFAULT_AWS_ACCESS_KEY_ID }}"
-          aws configure set aws_secret_access_key "${{ secrets.DEFAULT_AWS_SECRET_ACCESS_KEY}}"
+      # No stored keys: the role trusts this repository's workflows on main only, and may push to the
+      # mytype-server repository only (infra/tofu/ci.tf in the product repo).
+      - name: authenticate aws
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: arn:aws:iam::401466818267:role/mytype-ci-image-push
+          aws-region: eu-west-1
 
       - name: BUILD
         shell: bash
